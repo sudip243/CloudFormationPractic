@@ -1,0 +1,93 @@
+Parameters:
+  AMI:
+    Type: String
+    Description: custom Ami for webserver
+    default: ami-080e1f13689e07408
+  InstanceType:
+    Type: String
+    Description: LW test Instance Type
+    default: t3.medium
+  KeyName:
+    Type: String
+    Description: put your ssh key pem file
+Resources:
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+      - key: Name                
+        value: VPC
+  MyInternetGateway:
+    Type: AWS::EC2:InternetGateway
+    Properties:
+      Tags:
+      - key: Name      
+        value: Igw
+  VPCGatewayAttachment:
+    Type: AWS::EC2:VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref MyInternetGateway
+  MySubnetA:
+    Type: AWS:EC2:Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select  [ 0, !GetAZs ]
+      Tags:
+      - key: Name
+        value: MysubnetA1
+  MyRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+      - key: Name      
+        value: Routetable
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: MyInternetGateway
+    Properties:
+      RouteTableId: !Ref MyRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyInternetGateway
+  SubnetRouteTableAssocation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MySubnetA
+      RouteTableId: !Ref MyRouteTable    
+  MyFirestOSByCF:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImgeId: !Ref AMI
+      SubnetId: !Ref MySubnetA
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: !Ref InstanceSecurityGroup
+      AbailabilityZone: us-east-1
+      Tags:
+      - key: Name
+        value: OS
+  MyEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref MyFirestOSByCF
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to client host
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - key: Name
+        value: SG     
